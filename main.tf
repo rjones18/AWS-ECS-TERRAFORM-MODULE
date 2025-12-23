@@ -191,7 +191,7 @@ resource "aws_iam_policy" "execution_secrets_read" {
 resource "aws_iam_role_policy_attachment" "execution_secrets_read_attach" {
   count      = length(var.secretsmanager_arns) > 0 ? 1 : 0
   role       = aws_iam_role.execution.name
-  policy_arn  = aws_iam_policy.execution_secrets_read[0].arn
+  policy_arn = aws_iam_policy.execution_secrets_read[0].arn
 }
 
 
@@ -205,7 +205,7 @@ resource "aws_iam_policy" "secrets_read" {
 resource "aws_iam_role_policy_attachment" "task_secrets_read" {
   count      = length(var.secretsmanager_arns) > 0 ? 1 : 0
   role       = aws_iam_role.task.name
-  policy_arn  = aws_iam_policy.secrets_read[0].arn
+  policy_arn = aws_iam_policy.secrets_read[0].arn
 }
 
 # ---------------------------
@@ -257,7 +257,7 @@ resource "aws_ecs_task_definition" "this" {
   task_role_arn      = aws_iam_role.task.arn
 
   container_definitions = local.container_definitions
-  tags                 = var.tags
+  tags                  = var.tags
 }
 
 resource "aws_ecs_service" "this" {
