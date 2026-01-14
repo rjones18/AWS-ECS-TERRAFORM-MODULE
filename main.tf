@@ -32,7 +32,7 @@ resource "aws_ecs_cluster" "this" {
 # Security Groups
 # ---------------------------
 
-# ALB SG: inbound 80 from internet; outbound to ECS
+# ALB SG: inbound 80 from internet; optional 443; outbound to ECS
 resource "aws_security_group" "alb" {
   name        = "${var.name}-alb-sg"
   description = "ALB security group"
@@ -54,6 +54,20 @@ resource "aws_security_group" "alb" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+# Add HTTPS ingress when enable_https=true
+resource "aws_security_group_rule" "alb_https_in" {
+  count             = var.enable_https ? 1 : 0
+  type              = "ingress"
+  security_group_id = aws_security_group.alb.id
+
+  from_port   = 443
+  to_port     = 443
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+
+  description = "HTTPS"
 }
 
 # ECS SG: inbound ONLY from ALB SG to container_port; outbound all
@@ -81,7 +95,7 @@ resource "aws_security_group" "ecs" {
 }
 
 # ---------------------------
-# ALB + Target Group + Listener
+# ALB + Target Group + Listeners
 # ---------------------------
 resource "aws_lb" "this" {
   name               = substr("${var.name}-alb", 0, 32)
@@ -110,10 +124,44 @@ resource "aws_lb_target_group" "this" {
   }
 }
 
+# HTTP listener: either forward OR redirect to HTTPS
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"
+
+  default_action {
+    type = (var.enable_https && var.redirect_http_to_https) ? "redirect" : "forward"
+
+    dynamic "redirect" {
+      for_each = (var.enable_https && var.redirect_http_to_https) ? [1] : []
+      content {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+
+dynamic "forward" {
+  for_each = (var.enable_https && var.redirect_http_to_https) ? [] : [1]
+  content {
+    target_group {
+      arn = aws_lb_target_group.this.arn
+    }
+  }
+}
+}
+}
+
+# HTTPS listener (optional)
+resource "aws_lb_listener" "https" {
+  count             = var.enable_https ? 1 : 0
+  load_balancer_arn = aws_lb.this.arn
+  port              = 443
+  protocol          = "HTTPS"
+
+  ssl_policy      = var.ssl_policy
+  certificate_arn = var.acm_certificate_arn
 
   default_action {
     type             = "forward"
@@ -195,7 +243,6 @@ resource "aws_iam_role_policy_attachment" "execution_secrets_read_attach" {
   policy_arn = aws_iam_policy.execution_secrets_read[0].arn
 }
 
-
 resource "aws_iam_policy" "secrets_read" {
   count  = length(var.secretsmanager_arns) > 0 ? 1 : 0
   name   = "${var.name}-secrets-read"
@@ -212,7 +259,6 @@ resource "aws_iam_role_policy_attachment" "task_secrets_read" {
 # ---------------------------
 # ECS Task Definition + Service
 # ---------------------------
-
 locals {
   env_list = [
     for k, v in var.env : { name = k, value = v }
@@ -280,7 +326,9 @@ resource "aws_ecs_service" "this" {
     container_port   = var.container_port
   }
 
+  # Service needs listener + TG ready. HTTP always exists, even if it redirects.
   depends_on = [aws_lb_listener.http]
 
   tags = var.tags
 }
+

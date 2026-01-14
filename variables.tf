@@ -77,3 +77,27 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "enable_https" {
+  description = "Enable HTTPS listener (443) using ACM certificate."
+  type        = bool
+  default     = false
+}
+
+variable "acm_certificate_arn" {
+  description = "ACM cert ARN to attach to the ALB HTTPS listener (required if enable_https=true)."
+  type        = string
+  default     = null
+}
+
+variable "redirect_http_to_https" {
+  description = "Redirect HTTP (80) to HTTPS (443). Requires enable_https=true."
+  type        = bool
+  default     = true
+}
+
+variable "ssl_policy" {
+  description = "ALB SSL policy."
+  type        = string
+  default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+}
