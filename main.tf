@@ -142,15 +142,15 @@ resource "aws_lb_listener" "http" {
       }
     }
 
-dynamic "forward" {
-  for_each = (var.enable_https && var.redirect_http_to_https) ? [] : [1]
-  content {
-    target_group {
-      arn = aws_lb_target_group.this.arn
+    dynamic "forward" {
+      for_each = (var.enable_https && var.redirect_http_to_https) ? [] : [1]
+      content {
+        target_group {
+          arn = aws_lb_target_group.this.arn
+        }
+      }
     }
   }
-}
-}
 }
 
 # HTTPS listener (optional)
