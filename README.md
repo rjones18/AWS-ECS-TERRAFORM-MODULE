@@ -43,38 +43,44 @@ It is designed for production-ready web applications such as **Flask, FastAPI, N
 ### Basic Example
 
 ```hcl
-module "ecs_service" {
-  source = "./modules/ecs-service-alb"
+module "malik_ecs" {
+  source = "git::https://github.com/rjones18/AWS-ECS-TERRAFORM-MODULE.git?ref=main"
 
-  name = "malik-ai"
+  name = "${var.app_name}-${var.environment}"
 
   vpc_id             = var.vpc_id
   public_subnet_ids  = var.public_subnet_ids
   private_subnet_ids = var.private_subnet_ids
 
-  image          = "123456789012.dkr.ecr.us-east-1.amazonaws.com/malik-ai:latest"
-  container_port = 5001
+  image          = var.ecr_image
+  container_port = var.container_port
 
-  desired_count = 1
-  cpu           = 1024
-  memory        = 2048
+  desired_count = var.desired_count
+  cpu           = var.cpu
+  memory        = var.memory
+
+  health_check_path = "/"
 
   env = {
-    FLASK_ENV = "prod"
+    FLASK_ENV = var.environment
+    APP_NAME  = var.app_name
   }
 
   secrets = {
-    MALIK_SECRETS_NAME = "arn:aws:secretsmanager:us-east-1:123456789012:secret:MALIK_SECRETS-AbCdEf"
+    MALIK_SECRETS_NAME = var.secrets_manager_arn
   }
 
   secretsmanager_arns = [
-    "arn:aws:secretsmanager:us-east-1:123456789012:secret:MALIK_SECRETS-AbCdEf"
+    var.secrets_manager_arn
   ]
 
-  tags = {
-    Project = "malik-ai"
-    Env     = "prod"
-  }
+  # ✅ NEW: HTTPS
+  enable_https           = true
+  redirect_http_to_https = true
+  acm_certificate_arn    = aws_acm_certificate_validation.app.certificate_arn
+  # ssl_policy           = "ELBSecurityPolicy-TLS13-1-2-2021-06" # optional if your module has this var
+
+  tags = var.tags
 }
 
 
