@@ -70,3 +70,13 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "hosted_zone_name" {
+  description = "Existing Route53 zone name, e.g. example.com."
+  type        = string
+}
+
+variable "app_fqdn" {
+  description = "Full DNS name for the app, e.g. streamflix.example.com"
+  type        = string
+}
